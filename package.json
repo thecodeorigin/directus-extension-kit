@@ -33,7 +33,7 @@
     "qrcode-terminal": "catalog:",
     "ts-pattern": "catalog:",
     "tsx": "catalog:",
-    "type-fest": "^5.0.1",
+    "type-fest": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
