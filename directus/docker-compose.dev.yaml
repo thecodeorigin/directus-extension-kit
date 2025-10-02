@@ -72,6 +72,7 @@ services:
       - ./extensions:/directus/extensions
       - ./migrations:/directus/migrations
       - ./templates:/directus/templates
+      - ./docker:/directus/storage
     depends_on:
       cache:
         condition: service_healthy
@@ -127,6 +128,11 @@ services:
       EXTENSIONS_AUTO_RELOAD: ${EXTENSIONS_AUTO_RELOAD:-true}
       REFRESH_TOKEN_COOKIE_SECURE: false
       SESSION_COOKIE_SECURE: false
+
+      # Zalo Extension Settings
+      ZALO_SESSION_PATH : /directus/storage
+
+
     command: >
       sh -c "
         npx directus bootstrap &&

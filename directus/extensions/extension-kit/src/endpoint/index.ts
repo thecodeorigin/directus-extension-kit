@@ -1,42 +1,90 @@
-// endpoint/index
 import { defineEndpoint } from '@directus/extensions-sdk'
-import { ZaloService } from './services/ZaloService'
+import ZaloService from './services/ZaloService'
 
-// The endpoint definition provides a context object that includes the emitter and getSchema function.
-export default defineEndpoint((router, { emitter, getSchema }) => {
-  // This route will be accessible at POST /zalo/init
-  router.post('/init', async (_req, res) => {
+export default defineEndpoint((router, { database, getSchema, services }) => {
+  const { ItemsService } = services
+
+  const zaloService = ZaloService.init(database, getSchema, ItemsService)
+
+  // POST /zalo/init
+  router.post('/init', async (req, res) => {
     try {
-      // Await getSchema() to ensure it's available for initialization.
-      const schema = await getSchema()
-      // Pass the emitter and schema. The singleton pattern in ZaloService
-      // will ensure it's only initialized once, even if the hook also calls this.
-      const zaloService = ZaloService.getInstance(emitter, schema)
+      const result = await zaloService.initiateLogin()
 
-      zaloService.initiateLogin().catch((err) => {
-        console.error('[Zalo Endpoint] Error during login initiation:', err)
-      })
-
-      res.json({ message: 'Login process initiated. Please poll /zalo/status for updates.' })
+      if (result.success) {
+        res.json({
+          success: true,
+          userId: result.userId,
+          message: 'Logged in successfully',
+        })
+      }
+      else if (result.qrCode) {
+        res.json({
+          success: false,
+          qrCode: result.qrCode,
+          message: 'QR code generated, please scan',
+        })
+      }
+      else {
+        res.json({
+          success: false,
+          message: 'Login failed',
+        })
+      }
     }
-    catch (error) {
-      console.error('[Zalo Endpoint] Failed to get schema for ZaloService initialization:', error)
-      res.status(500).json({ error: 'Failed to initialize service.' })
+    catch (error: any) {
+      console.error('[Zalo Endpoint] Init error:', error)
+      res.status(500).json({ error: error.message })
     }
   })
 
-  // This route will be accessible at GET /zalo/status
-  router.get('/status', async (_req, res) => {
+  // GET /zalo/status
+  router.get('/status', (req, res) => {
     try {
-      const schema = await getSchema()
-      // Similarly, ensure the service is initialized before use.
-      const zaloService = ZaloService.getInstance(emitter, schema)
       const status = zaloService.getStatus()
       res.json(status)
     }
-    catch (error) {
-      console.error('[Zalo Endpoint] Failed to get schema for ZaloService initialization:', error)
-      res.status(500).json({ error: 'Failed to initialize service.' })
+    catch (error: any) {
+      console.error('[Zalo Endpoint] Status error:', error)
+      res.status(500).json({ error: error.message })
+    }
+  })
+
+  // POST /zalo/logout
+  router.post('/logout', async (req, res) => {
+    try {
+      await zaloService.logout()
+      res.json({
+        success: true,
+        message: 'Logged out successfully',
+      })
+    }
+    catch (error: any) {
+      console.error('[Zalo Endpoint] Logout error:', error)
+      res.status(500).json({ error: error.message })
+    }
+  })
+
+  // GET /zalo/session
+  router.get('/session', async (req, res) => {
+    try {
+      const session = await zaloService.getSessionInfo()
+
+      if (session) {
+        res.json({
+          exists: true,
+          userId: session.userId,
+          loginTime: session.loginTime,
+          isActive: session.isActive,
+        })
+      }
+      else {
+        res.json({ exists: false })
+      }
+    }
+    catch (error: any) {
+      console.error('[Zalo Endpoint] Session error:', error)
+      res.status(500).json({ error: error.message })
     }
   })
 })
